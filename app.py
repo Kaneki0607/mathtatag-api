@@ -14,39 +14,52 @@ grouped = pd.read_pickle("grouped_tasks.pkl")
 def predict():
     data = request.get_json()
     
-    sample = [[
-        data['pattern_score'],
-        data['subtraction_score'],
-        data['income_bracket']
-    ]]
-    
-    # Predict based on input
-    prediction = model.predict(sample)
-    task_titles = mlb.inverse_transform(prediction)[0]
-
-    # Get the row from grouped that matches input
-    match = grouped[
-        (grouped['pattern_score'] == data['pattern_score']) &
-        (grouped['subtraction_score'] == data['subtraction_score']) &
-        (grouped['income_bracket'] == data['income_bracket'])
-    ]
-
-    if match.empty:
-        return jsonify({"error": "No tasks found for this input."}), 404
-
-    titles = match.iloc[0]['task_title']
-    details = match.iloc[0]['task_details']
-    objectives = match.iloc[0]['task_objective']
-
-    # Combine all 3 fields
+    max_attempts = 10  # Avoid infinite loops
+    attempt = 0
+    unique_titles = set()
     tasks = []
-    for i in range(min(6, len(titles))):
-        tasks.append({
-            "task_title": titles[i],
-            "task_details": details[i],
-            "task_objective": objectives[i]
-        })
+    while attempt < max_attempts:
+        sample = [[
+            data['pattern_score'],
+            data['subtraction_score'],
+            data['income_bracket']
+        ]]
+        # Predict based on input
+        prediction = model.predict(sample)
+        task_titles = mlb.inverse_transform(prediction)[0]
 
+        # Get the row from grouped that matches input
+        match = grouped[
+            (grouped['pattern_score'] == data['pattern_score']) &
+            (grouped['subtraction_score'] == data['subtraction_score']) &
+            (grouped['income_bracket'] == data['income_bracket'])
+        ]
+
+        if match.empty:
+            return jsonify({"error": "No tasks found for this input."}), 404
+
+        titles = match.iloc[0]['task_title']
+        details = match.iloc[0]['task_details']
+        objectives = match.iloc[0]['task_objective']
+
+        # Combine all 3 fields, but only add unique task_titles
+        tasks = []
+        unique_titles = set()
+        for i in range(len(titles)):
+            if titles[i] not in unique_titles:
+                tasks.append({
+                    "task_title": titles[i],
+                    "task_details": details[i],
+                    "task_objective": objectives[i]
+                })
+                unique_titles.add(titles[i])
+            if len(tasks) == 6:
+                break
+        if len(tasks) == min(6, len(titles)) and len(tasks) == len(set([t["task_title"] for t in tasks])):
+            break  # All tasks are unique
+        attempt += 1
+    if len(tasks) == 0:
+        return jsonify({"error": "No unique tasks found for this input."}), 404
     return jsonify(tasks)
 
 @app.route('/gpt', methods=['POST'])

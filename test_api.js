@@ -1,7 +1,9 @@
-const fetch = (...args) => import('node-fetch').then(({default: fetch}) => fetch(...args));
+// Node.js dynamic fetch import
+const fetch = (...args) => import('node-fetch').then(({ default: fetch }) => fetch(...args));
 
+// Function to call your /predict endpoint
 const getSuggestedTasks = async (pattern, subtraction, income) => {
-  const response = await fetch('http://127.0.0.1:5000/predict', {
+  const response = await fetch('https://mathtatag-api.onrender.com/predict', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
@@ -10,7 +12,7 @@ const getSuggestedTasks = async (pattern, subtraction, income) => {
       income_bracket: income
     }),
   });
-a
+
   if (!response.ok) {
     const error = await response.json();
     throw new Error(error.error || 'Unknown error');
@@ -20,15 +22,15 @@ a
   return result;
 };
 
+// Run and test the function
 (async () => {
   try {
-    // Change these values to test different inputs
     const pattern = 6;
     const subtraction = 5;
     const income = 3;
     const tasks = await getSuggestedTasks(pattern, subtraction, income);
-    console.log('Suggested tasks:', tasks);
+    console.log('✅ Suggested tasks:\n', tasks);
   } catch (err) {
-    console.error('API error:', err.message);
+    console.error('❌ API error:', err.message);
   }
-})(); 
+})();
