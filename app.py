@@ -107,7 +107,22 @@ def gpt():
     
 @app.route('/health')
 def health():
-    return "✅ Mathtatag API is running", 200
+    # Example version, update as needed
+    api_version = "1.0.0"
+    # Count number of grouped tasks (rows)
+    num_task_groups = len(grouped)
+    # Optionally, count total unique tasks
+    unique_tasks = set()
+    for titles in grouped['task_title']:
+        unique_tasks.update(titles)
+    num_unique_tasks = len(unique_tasks)
+    return jsonify({
+        "status": "ok",
+        "message": "✅ Mathtatag API is running",
+        "version": api_version,
+        "num_task_groups": num_task_groups,
+        "num_unique_tasks": num_unique_tasks
+    }), 200
 
 
 if __name__ == '__main__':
