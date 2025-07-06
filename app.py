@@ -2,6 +2,8 @@ from flask import Flask, request, jsonify
 import joblib
 import pandas as pd
 import requests
+import threading
+import time
 
 app = Flask(__name__)
 
@@ -110,7 +112,7 @@ def gpt():
 @app.route('/health')
 def health():
     # Example version, update as needed
-    api_version = "1.0.2"
+    api_version = "1.0.3"
     # Count number of grouped tasks (rows)
     num_task_groups = len(grouped)
     # Optionally, count total unique tasks
@@ -126,6 +128,15 @@ def health():
         "num_unique_tasks": num_unique_tasks
     }), 200
 
+def keep_alive():
+    while True:
+        try:
+            # Change the URL to your deployed app's health endpoint
+            requests.get("https://mathtatag-api.onrender.com/health")
+        except Exception as e:
+            print("Keep-alive ping failed:", e)
+        time.sleep(600)  # Ping every 10 minutes
 
 if __name__ == '__main__':
-    app.run(debug=True)
+    threading.Thread(target=keep_alive, daemon=True).start()
+    app.run(debug=True, host='0.0.0.0')
