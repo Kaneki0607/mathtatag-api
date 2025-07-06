@@ -85,7 +85,7 @@ def gpt():
         "method": "complete",
         "args": {
             "messages": [
-                {"role": "user", "content": prompt}
+                {"content": prompt}
             ]
         }
     }
