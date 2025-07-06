@@ -108,7 +108,7 @@ def gpt():
 @app.route('/health')
 def health():
     # Example version, update as needed
-    api_version = "1.0.0"
+    api_version = "1.0.1"
     # Count number of grouped tasks (rows)
     num_task_groups = len(grouped)
     # Optionally, count total unique tasks
