@@ -100,7 +100,9 @@ def gpt():
             return jsonify({"error": "Puter API error", "details": response.text}), 500
         result = response.json()
         # Extract the assistant's reply
-        message = result.get("result", {}).get("message", {}).get("content", "")
+        message = result.get("result", {}).get("message", {}).get("content")
+        if not message:
+            return jsonify({"error": "No AI response found in Puter API reply."}), 500
         return jsonify({"response": message})
     except Exception as e:
         return jsonify({"error": str(e)}), 500
