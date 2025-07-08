@@ -92,40 +92,46 @@ def gpt():
     if not prompt:
         return jsonify({"error": "Prompt is required."}), 400
 
-    # Insert your Bearer token here
-    bearer_token = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ0IjoiYXUiLCJ2IjoiMC4wLjAiLCJ1dSI6IjZZbCtMd25iUlplUFZ3d1NzZzZLY3c9PSIsImF1IjoiaWRnL2ZEMDdVTkdhSk5sNXpXUGZhUT09IiwicyI6IjRBT3JMcGpBeHY3U1EyU3dmMnZJY3c9PSIsImlhdCI6MTc1MTgyMDkzOH0.mxAT7cm6UNUtl8zgkD5P1FwWa28xNxmZzIyWRiDPpQQ"
+    # Gemini API key placeholder
+    gemini_api_key = "AIzaSyDsUXZXUDTMRQI0axt_A9ulaSe_m-HQvZk"
+    if not gemini_api_key or gemini_api_key == "AIzaSyDsUXZXUDTMRQI0axt_A9ulaSe_m-HQvZk":
+        return jsonify({"error": "Gemini API key not set."}), 500
 
     headers = {
-        "Authorization": f"Bearer {bearer_token}",
-        "Content-Type": "application/json;charset=UTF-8",
-        "Origin": "https://docs.puter.com"
+        "Content-Type": "application/json",
+        "X-goog-api-key": gemini_api_key
     }
 
     payload = {
-        "interface": "puter-chat-completion",
-        "driver": "openai-completion",
-        "test_mode": False,
-        "method": "complete",
-        "args": {
-            "messages": [
-                {"content": prompt}
-            ]
-        }
+        "contents": [
+            {
+                "parts": [
+                    {
+                        "text": prompt
+                    }
+                ]
+            }
+        ]
     }
 
     try:
         response = requests.post(
-            "https://api.puter.com/drivers/call",
+            "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent",
             headers=headers,
             json=payload
         )
         if response.status_code != 200:
-            return jsonify({"error": "Puter API error", "details": response.text}), 500
+            return jsonify({"error": "Gemini API error", "details": response.text}), 500
         result = response.json()
-        # Extract the assistant's reply
-        message = result.get("result", {}).get("message", {}).get("content")
+        # Extract the AI's reply
+        message = (
+            result.get("candidates", [{}])[0]
+            .get("content", {})
+            .get("parts", [{}])[0]
+            .get("text")
+        )
         if not message:
-            return jsonify({"error": "No AI response found in Puter API reply."}), 500
+            return jsonify({"error": "No AI response found in Gemini API reply."}), 500
         return jsonify({"response": message})
     except Exception as e:
         return jsonify({"error": str(e)}), 500
