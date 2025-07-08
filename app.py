@@ -4,6 +4,7 @@ import pandas as pd
 import requests
 import threading
 import time
+import subprocess
 
 app = Flask(__name__)
 
@@ -129,6 +130,14 @@ def gpt():
     except Exception as e:
         return jsonify({"error": str(e)}), 500
     
+def get_git_version():
+    try:
+        commit_hash = subprocess.check_output(['git', 'rev-parse', '--short', 'HEAD']).decode('utf-8').strip()
+        commit_msg = subprocess.check_output(['git', 'log', '-1', '--pretty=%B']).decode('utf-8').strip()
+        return f"{commit_hash}: {commit_msg}"
+    except Exception as e:
+        return "unknown"
+
 @app.route('/health')
 def health():
     # Example version, update as needed
@@ -140,10 +149,12 @@ def health():
     for titles in grouped['task_title']:
         unique_tasks.update(titles)
     num_unique_tasks = len(unique_tasks)
+    git_version = get_git_version()
     return jsonify({
         "status": "ok",
         "message": "✅ Mathtatag API is running",
         "version": api_version,
+        "git_version": git_version,
         "num_task_groups": num_task_groups,
         "num_unique_tasks": num_unique_tasks
     }), 200
