@@ -114,27 +114,44 @@ def gpt():
         ]
     }
 
-    try:
-        response = requests.post(
-            "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent",
-            headers=headers,
-            json=payload
-        )
-        if response.status_code != 200:
-            return jsonify({"error": "Gemini API error", "details": response.text}), 500
-        result = response.json()
-        # Extract the AI's reply
-        message = (
-            result.get("candidates", [{}])[0]
-            .get("content", {})
-            .get("parts", [{}])[0]
-            .get("text")
-        )
-        if not message:
-            return jsonify({"error": "No AI response found in Gemini API reply."}), 500
-        return jsonify({"response": message})
-    except Exception as e:
-        return jsonify({"error": str(e)}), 500
+    max_retries = 5
+    retry_delay = 1
+    for attempt in range(max_retries):
+        try:
+            response = requests.post(
+                "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent",
+                headers=headers,
+                json=payload
+            )
+            if response.status_code == 503:
+                try:
+                    error_json = response.json()
+                    error_message = error_json.get("error", {}).get("message", "")
+                except Exception:
+                    error_message = ""
+                if "model is overloaded" in error_message:
+                    if attempt < max_retries - 1:
+                        time.sleep(retry_delay)
+                        continue
+                return jsonify({"error": "Gemini API error", "details": response.text}), 500
+            if response.status_code != 200:
+                return jsonify({"error": "Gemini API error", "details": response.text}), 500
+            result = response.json()
+            # Extract the AI's reply
+            message = (
+                result.get("candidates", [{}])[0]
+                .get("content", {})
+                .get("parts", [{}])[0]
+                .get("text")
+            )
+            if not message:
+                return jsonify({"error": "No AI response found in Gemini API reply."}), 500
+            return jsonify({"response": message})
+        except Exception as e:
+            if attempt < max_retries - 1:
+                time.sleep(retry_delay)
+                continue
+            return jsonify({"error": str(e)}), 500
     
 def get_git_version():
     try:
