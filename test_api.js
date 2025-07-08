@@ -25,8 +25,8 @@ const getSuggestedTasks = async (pattern, subtraction, income) => {
 // Run and test the function
 (async () => {
   try {
-    const pattern = 6;
-    const subtraction = 5;
+    const pattern = 8;
+    const subtraction = 4;
     const income = 3;
     const tasks = await getSuggestedTasks(pattern, subtraction, income);
     console.log('✅ Suggested tasks:\n', tasks);

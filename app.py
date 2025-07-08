@@ -62,6 +62,26 @@ def predict():
         attempt += 1
     if len(tasks) == 0:
         return jsonify({"error": "No unique tasks found for this input."}), 404
+
+    # Top up with more unique tasks from anywhere in the dataset if less than 6
+    if len(tasks) < 6:
+        for idx, row in grouped.iterrows():
+            titles = row['task_title']
+            details = row['task_details']
+            objectives = row['task_objective']
+            for i in range(len(titles)):
+                if titles[i] not in unique_titles:
+                    tasks.append({
+                        "task_title": titles[i],
+                        "task_details": details[i],
+                        "task_objective": objectives[i]
+                    })
+                    unique_titles.add(titles[i])
+                if len(tasks) == 6:
+                    break
+            if len(tasks) == 6:
+                break
+
     return jsonify(tasks)
 
 @app.route('/gpt', methods=['POST'])
