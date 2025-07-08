@@ -94,7 +94,7 @@ def gpt():
 
     # Gemini API key placeholder
     gemini_api_key = "AIzaSyDsUXZXUDTMRQI0axt_A9ulaSe_m-HQvZk"
-    if not gemini_api_key or gemini_api_key == "AIzaSyDsUXZXUDTMRQI0axt_A9ulaSe_m-HQvZk":
+    if not gemini_api_key or gemini_api_key == "YOUR_GEMINI_API_KEY_HERE":
         return jsonify({"error": "Gemini API key not set."}), 500
 
     headers = {
