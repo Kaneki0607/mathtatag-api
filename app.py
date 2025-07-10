@@ -225,6 +225,8 @@ def health():
     }), 200
 
 def keep_alive():
+    logger.info("Keep-alive thread started.")
+    send_discord_log("🟢 Keep-alive thread started.")
     while True:
         try:
             logger.info("Sending keep-alive ping...")
