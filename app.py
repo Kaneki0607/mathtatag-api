@@ -207,7 +207,7 @@ def get_git_version():
 
 @app.route('/health')
 def health():
-    api_version = "2.0"
+    api_version = "2.1"
     num_task_groups = len(grouped)
     unique_tasks = set()
     for titles in grouped['task_title']:
@@ -231,9 +231,11 @@ def keep_alive():
             # Change the URL to your deployed app's health endpoint
             requests.get("https://mathtatag-api.onrender.com/health")
             logger.info("✅ Mathtatag API keep-alive ping sent and server is alive!")
+            send_discord_log("🟢 **Mathtatag API is alive and running!** - Keep-alive ping successful")
         except Exception as e:
             logger.error(f"Keep-alive ping failed: {e}")
-        time.sleep(600)  # Ping every 10 minutes
+            send_discord_log(f"🔴 **Mathtatag API keep-alive failed:** {e}")
+        time.sleep(300)  # Ping every 5 minutes
 
 if __name__ == '__main__':
     threading.Thread(target=keep_alive, daemon=True).start()
