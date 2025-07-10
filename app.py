@@ -5,17 +5,46 @@ import requests
 import threading
 import time
 import subprocess
+import logging
 
 app = Flask(__name__)
+app.config['JSONIFY_PRETTYPRINT_REGULAR'] = True
 
 # Load trained model, encoder, and grouped data
 model = joblib.load("model.pkl")
 mlb = joblib.load("mlb.pkl")
 grouped = pd.read_pickle("grouped_tasks.pkl")
 
+DISCORD_WEBHOOK_URL = "https://discordapp.com/api/webhooks/1392709998294863974/F_i0zuooyo-E2y1RA173TZrDD_mcrYW9URDdk_g5MgYN1GxwDTS3wsQ9f_1i_R_kPytO"
+
+class DiscordLogHandler(logging.Handler):
+    def emit(self, record):
+        log_entry = self.format(record)
+        send_discord_log(log_entry)
+
+def send_discord_log(message):
+    data = {"content": message}
+    try:
+        response = requests.post(DISCORD_WEBHOOK_URL, json=data)
+        response.raise_for_status()
+    except Exception as e:
+        print("Failed to send Discord log:", e)
+
+# Set up logging
+logger = logging.getLogger("mathtatag-api")
+logger.setLevel(logging.INFO)
+formatter = logging.Formatter('[%(asctime)s] %(levelname)s: %(message)s')
+console_handler = logging.StreamHandler()
+console_handler.setFormatter(formatter)
+discord_handler = DiscordLogHandler()
+discord_handler.setFormatter(formatter)
+logger.addHandler(console_handler)
+logger.addHandler(discord_handler)
+
 @app.route('/predict', methods=['POST'])
 def predict():
     data = request.get_json()
+    logger.info(f"/predict called with data: {data}")
     
     max_attempts = 10  # Avoid infinite loops
     attempt = 0
@@ -39,6 +68,7 @@ def predict():
         ]
 
         if match.empty:
+            logger.warning(f"No tasks found for input: {data}")
             return jsonify({"error": "No tasks found for this input."}), 404
 
         titles = match.iloc[0]['task_title']
@@ -62,6 +92,7 @@ def predict():
             break  # All tasks are unique
         attempt += 1
     if len(tasks) == 0:
+        logger.warning(f"No unique tasks found for input: {data}")
         return jsonify({"error": "No unique tasks found for this input."}), 404
 
     # Top up with more unique tasks from anywhere in the dataset if less than 6
@@ -83,18 +114,22 @@ def predict():
             if len(tasks) == 6:
                 break
 
+    logger.info(f"Returning {len(tasks)} tasks for input: {data}")
     return jsonify(tasks)
 
 @app.route('/gpt', methods=['POST'])
 def gpt():
     data = request.get_json()
     prompt = data.get('prompt', '')
+    logger.info(f"/gpt called with prompt: {prompt}")
     if not prompt:
+        logger.warning("Prompt is required for /gpt endpoint.")
         return jsonify({"error": "Prompt is required."}), 400
 
     # Gemini API key placeholder
     gemini_api_key = "AIzaSyDsUXZXUDTMRQI0axt_A9ulaSe_m-HQvZk"
     if not gemini_api_key or gemini_api_key == "YOUR_GEMINI_API_KEY_HERE":
+        logger.error("Gemini API key not set.")
         return jsonify({"error": "Gemini API key not set."}), 500
 
     headers = {
@@ -130,11 +165,14 @@ def gpt():
                 except Exception:
                     error_message = ""
                 if "model is overloaded" in error_message:
+                    logger.warning("Gemini API model is overloaded. Retrying...")
                     if attempt < max_retries - 1:
                         time.sleep(retry_delay)
                         continue
+                logger.error(f"Gemini API error: {response.text}")
                 return jsonify({"error": "Gemini API error", "details": response.text}), 500
             if response.status_code != 200:
+                logger.error(f"Gemini API error: {response.text}")
                 return jsonify({"error": "Gemini API error", "details": response.text}), 500
             result = response.json()
             # Extract the AI's reply
@@ -145,9 +183,12 @@ def gpt():
                 .get("text")
             )
             if not message:
+                logger.error("No AI response found in Gemini API reply.")
                 return jsonify({"error": "No AI response found in Gemini API reply."}), 500
+            logger.info("Gemini API call successful.")
             return jsonify({"response": message})
         except Exception as e:
+            logger.error(f"Gemini API exception: {e}")
             if attempt < max_retries - 1:
                 time.sleep(retry_delay)
                 continue
@@ -157,22 +198,23 @@ def get_git_version():
     try:
         commit_hash = subprocess.check_output(['git', 'rev-parse', '--short', 'HEAD']).decode('utf-8').strip()
         commit_msg = subprocess.check_output(['git', 'log', '-1', '--pretty=%B']).decode('utf-8').strip()
-        return f"{commit_hash}: {commit_msg}"
+        version = f"{commit_hash}: {commit_msg}"
+        logger.info(f"Git version: {version}")
+        return version
     except Exception as e:
+        logger.error(f"Failed to get git version: {e}")
         return "unknown"
 
 @app.route('/health')
 def health():
-    # Example version, update as needed
-    api_version = "1.0.5"
-    # Count number of grouped tasks (rows)
+    api_version = "2.0"
     num_task_groups = len(grouped)
-    # Optionally, count total unique tasks
     unique_tasks = set()
     for titles in grouped['task_title']:
         unique_tasks.update(titles)
     num_unique_tasks = len(unique_tasks)
     git_version = get_git_version()
+    logger.info(f"/health checked. Version: {api_version}, Task groups: {num_task_groups}, Unique tasks: {num_unique_tasks}")
     return jsonify({
         "status": "ok",
         "message": "✅ Mathtatag API is running",
@@ -185,12 +227,15 @@ def health():
 def keep_alive():
     while True:
         try:
+            logger.info("Sending keep-alive ping...")
             # Change the URL to your deployed app's health endpoint
             requests.get("https://mathtatag-api.onrender.com/health")
+            logger.info("✅ Mathtatag API keep-alive ping sent and server is alive!")
         except Exception as e:
-            print("Keep-alive ping failed:", e)
+            logger.error(f"Keep-alive ping failed: {e}")
         time.sleep(600)  # Ping every 10 minutes
 
 if __name__ == '__main__':
     threading.Thread(target=keep_alive, daemon=True).start()
+    logger.info("Mathtatag API server starting...")
     app.run(debug=True, host='0.0.0.0')
